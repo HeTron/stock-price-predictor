@@ -1,0 +1,27 @@
+# Environment and dependency management
+.venv/
+.env
+.env.*
+
+# Jupyter and Python cache
+__pycache__/
+.ipynb_checkpoints/
+*.py[cod]
+*.egg
+*.egg-info/
+
+# OS files
+.DS_Store
+
+# IDE configs
+.idea/
+.vscode/
+
+# Model artifacts or large files (optional)
+*.joblib
+*.h5
+*.pkl
+*.csv
+
+# Streamlit cloud debug cache (optional)
+.streamlit/
