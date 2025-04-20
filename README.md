@@ -1,4 +1,5 @@
 # 📈 Stock Price Predictor
+[![View App](https://img.shields.io/badge/Live%20App-Streamlit-blue?logo=streamlit)](https://hetron-stock-price-predictor.streamlit.app)
 
 This project predicts future stock prices using a machine learning model trained on historical price data and macro indicators. Built using Streamlit, it lets users enter a stock symbol and view predictions in real-time.
 
@@ -11,6 +12,13 @@ Users enter a stock ticker (e.g. NVDA), and the app:
 - Preprocesses and aligns the data
 - Applies a trained model to predict future values
 - Visualizes the results with interactive charts
+
+---
+
+## 🌐 Live Demo
+
+Try it here on Streamlit Cloud:  
+👉 [https://hetron-stock-price-predictor.streamlit.app](https://hetron-stock-price-predictor.streamlit.app)
 
 ---
 
