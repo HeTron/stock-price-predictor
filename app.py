@@ -25,8 +25,9 @@ if st.button('Predict'):
 
         X_train, y_train = training_data_prep(stock_data)
 
-        predictions_df = model_operation(X_train, y_train, stock_data)
+        predictions_df, metrics_dict, comparison_df, _ = model_operation(X_train, y_train, stock_data)
 
         st.write(predictions_df)
+        st.write(f"Test RMSE: ${metrics_dict['RMSE']:.2f} | R²: {metrics_dict['R2']:.4f}")
     else:
         st.write("Please enter a valid stock symbol.")

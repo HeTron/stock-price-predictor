@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 from PIL import Image
 
@@ -20,20 +21,10 @@ st.markdown(
     """
 )
 
-# Open the image file
-image = Image.open(r'C:\Users\bryan\PythonWorkSpaces\StockAdvisorFinal\Stock_Predictor\assets\Logo.jpg')
-
-# Get the original width and height of the image
-original_width, original_height = image.size
-
-# Calculate the aspect ratio
-aspect_ratio = original_height / original_width
-
-# Set the desired width
-desired_width = 400
-
-# Calculate the corresponding height based on the aspect ratio
-desired_height = int(desired_width * aspect_ratio)
-
-# Display the image with the desired width and height at the bottom of the page
-st.image(image, caption='Company Logo', width=desired_width, output_format='PNG')
+logo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'Logo.jpg')
+if os.path.exists(logo_path):
+    image = Image.open(logo_path)
+    desired_width = 400
+    aspect_ratio = image.size[1] / image.size[0]
+    desired_height = int(desired_width * aspect_ratio)
+    st.image(image, caption='Company Logo', width=desired_width, output_format='PNG')
