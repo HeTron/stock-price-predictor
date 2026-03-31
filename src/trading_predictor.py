@@ -8,6 +8,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.linear_model import Ridge
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.base import clone
 from sklearn.model_selection import TimeSeriesSplit
 
 try:
@@ -176,8 +177,7 @@ def cross_validate_model(pipeline, X, y, n_splits=TSCV_N_SPLITS):
         X_tr, X_te = X[train_idx], X[test_idx]
         y_tr, y_te = y[train_idx], y[test_idx]
 
-        import sklearn.base
-        fold_model = sklearn.base.clone(pipeline)
+        fold_model = clone(pipeline)
         fold_model.fit(X_tr, y_tr)
 
         fold_m = evaluate_model(fold_model, X_te, y_te)
