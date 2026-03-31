@@ -2,9 +2,9 @@
 import os
 import pytest
 from src.config import (
-    FEATURE_COLUMNS, TARGET_COLUMN, TEST_SIZE_FRACTION, MIN_TRAIN_ROWS,
-    TSCV_N_SPLITS, FORECAST_DAYS, LAG_COL_INDICES, MA_WINDOWS, LAG_DAYS,
-    MODELS_DIR, DATA_DIR, BASE_DIR,
+    FEATURE_COLUMNS, TARGET_COLUMN, MODEL_TARGET,
+    TEST_SIZE_FRACTION, MIN_TRAIN_ROWS, TSCV_N_SPLITS, FORECAST_DAYS,
+    LAG_RETURN_COL_INDICES, MA_WINDOWS, MODELS_DIR, DATA_DIR, BASE_DIR,
 )
 
 
@@ -16,20 +16,39 @@ def test_feature_columns_are_strings():
     assert all(isinstance(c, str) for c in FEATURE_COLUMNS)
 
 
-def test_lag_days_all_in_feature_columns():
-    for lag in ['lag_1_day', 'lag_5_days', 'lag_30_days', 'lag_45_days']:
-        assert lag in FEATURE_COLUMNS, f"{lag} missing from FEATURE_COLUMNS"
+def test_lag_return_columns_all_in_feature_columns():
+    for col in ['lag_return_1', 'lag_return_5', 'lag_return_30', 'lag_return_45']:
+        assert col in FEATURE_COLUMNS, f"{col} missing from FEATURE_COLUMNS"
 
 
-def test_lag_col_indices_match_feature_columns():
-    for col, idx in LAG_COL_INDICES.items():
+def test_no_absolute_price_lag_columns():
+    """Absolute price lags cause regime-shift errors — they must not be in FEATURE_COLUMNS."""
+    for col in ['lag_1_day', 'lag_5_days', 'lag_30_days', 'lag_45_days']:
+        assert col not in FEATURE_COLUMNS, f"{col} should not be in FEATURE_COLUMNS (use lag_return_* instead)"
+
+
+def test_lag_return_col_indices_match_feature_columns():
+    for col, idx in LAG_RETURN_COL_INDICES.items():
         assert FEATURE_COLUMNS[idx] == col, (
-            f"LAG_COL_INDICES['{col}'] = {idx} but FEATURE_COLUMNS[{idx}] = {FEATURE_COLUMNS[idx]}"
+            f"LAG_RETURN_COL_INDICES['{col}'] = {idx} but FEATURE_COLUMNS[{idx}] = {FEATURE_COLUMNS[idx]}"
         )
+
+
+def test_target_column_is_adjclose():
+    assert TARGET_COLUMN == 'adjClose'
+
+
+def test_model_target_is_log_returns():
+    assert MODEL_TARGET == 'log_returns'
 
 
 def test_target_column_not_in_feature_columns():
     assert TARGET_COLUMN not in FEATURE_COLUMNS
+
+
+def test_model_target_in_feature_columns():
+    """log_returns is used both as a feature and as the prediction target."""
+    assert MODEL_TARGET in FEATURE_COLUMNS
 
 
 def test_test_size_fraction_valid():

@@ -8,9 +8,11 @@ DATA_DIR = os.path.join(BASE_DIR, 'data')
 # --- Feature Engineering ---
 RSI_WINDOW = 14
 MA_WINDOWS = [14, 30, 90]
-LAG_DAYS = [1, 5, 30, 45]
 
 # --- Feature Columns used for training (order matters — matches array indices) ---
+# Lag features use log RETURNS (not absolute prices) so the model is scale-invariant.
+# Absolute price lags caused predictions to anchor to historical price regimes
+# (e.g. split-adjusted AAPL 2015 adjClose ~$25 vs current ~$180).
 FEATURE_COLUMNS = [
     'RSI',
     'price_ratio_to_index',
@@ -19,20 +21,21 @@ FEATURE_COLUMNS = [
     'price_diff_from_vxx',
     'log_returns',
     'volatility_adjusted_returns',
-    'lag_1_day',
-    'lag_5_days',
-    'lag_30_days',
-    'lag_45_days',
+    'lag_return_1',    # log return 1 day ago
+    'lag_return_5',    # log return 5 days ago
+    'lag_return_30',   # log return 30 days ago
+    'lag_return_45',   # log return 45 days ago
 ]
 
-TARGET_COLUMN = 'adjClose'
+TARGET_COLUMN = 'adjClose'   # price column used throughout preprocessing
+MODEL_TARGET = 'log_returns' # what the model actually predicts; converted back to prices for output
 
-# Indices of lag columns within FEATURE_COLUMNS — used for recursive future prediction
-LAG_COL_INDICES = {
-    'lag_1_day': FEATURE_COLUMNS.index('lag_1_day'),
-    'lag_5_days': FEATURE_COLUMNS.index('lag_5_days'),
-    'lag_30_days': FEATURE_COLUMNS.index('lag_30_days'),
-    'lag_45_days': FEATURE_COLUMNS.index('lag_45_days'),
+# Indices of lag return columns — used for recursive future prediction
+LAG_RETURN_COL_INDICES = {
+    'lag_return_1':  FEATURE_COLUMNS.index('lag_return_1'),
+    'lag_return_5':  FEATURE_COLUMNS.index('lag_return_5'),
+    'lag_return_30': FEATURE_COLUMNS.index('lag_return_30'),
+    'lag_return_45': FEATURE_COLUMNS.index('lag_return_45'),
 }
 
 # --- Train / Test Split ---

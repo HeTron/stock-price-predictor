@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 from sklearn.pipeline import Pipeline
 
-from src.config import FEATURE_COLUMNS, TARGET_COLUMN, TEST_SIZE_FRACTION, TSCV_N_SPLITS
+from src.config import FEATURE_COLUMNS, TARGET_COLUMN, MODEL_TARGET, TEST_SIZE_FRACTION
 from src.trading_predictor import (
     calculate_rsi,
     split_time_series,
@@ -26,7 +26,7 @@ class TestCalculateRsi:
         rsi = calculate_rsi(sample_stock_df).fillna(50)
         assert rsi.between(0, 100).all(), "RSI values must be in [0, 100]"
 
-    def test_fillna_50_applied_in_preprocess(self, sample_stock_df):
+    def test_fillna_50_leaves_no_nan(self, sample_stock_df):
         rsi = calculate_rsi(sample_stock_df).fillna(50)
         assert not rsi.isna().any()
 
@@ -42,9 +42,7 @@ class TestSplitTimeSeries:
 
     def test_no_overlap(self, sample_stock_df):
         train_df, test_df = split_time_series(sample_stock_df)
-        train_dates = set(train_df['date'])
-        test_dates = set(test_df['date'])
-        assert train_dates.isdisjoint(test_dates)
+        assert set(train_df['date']).isdisjoint(set(test_df['date']))
 
     def test_proportions_approximately_correct(self, sample_stock_df):
         n = len(sample_stock_df)
@@ -67,7 +65,7 @@ class TestSplitTimeSeries:
 # ---------------------------------------------------------------------------
 
 class TestTrainingDataPrep:
-    def test_x_has_correct_columns(self, sample_stock_df):
+    def test_x_has_correct_number_of_columns(self, sample_stock_df):
         X, _ = training_data_prep(sample_stock_df)
         assert X.shape[1] == len(FEATURE_COLUMNS)
 
@@ -91,15 +89,30 @@ class TestTrainingDataPrep:
         _, y = training_data_prep(sample_stock_df)
         assert isinstance(y, np.ndarray)
 
+    def test_y_is_log_returns_not_adjclose(self, sample_stock_df):
+        """y must be log returns so the model is scale-invariant across price regimes."""
+        _, y = training_data_prep(sample_stock_df)
+        expected = sample_stock_df[MODEL_TARGET].values
+        np.testing.assert_array_equal(y, expected)
+
+    def test_y_is_not_adjclose(self, sample_stock_df):
+        """Regression guard: y must NOT be adjClose (that caused price-regime anchoring)."""
+        _, y = training_data_prep(sample_stock_df)
+        adjclose = sample_stock_df[TARGET_COLUMN].values
+        assert not np.allclose(y, adjclose), (
+            "y should be log_returns, not adjClose — "
+            "predicting raw prices anchors the model to historical price regimes"
+        )
+
     def test_feature_column_order(self, sample_stock_df):
         X, _ = training_data_prep(sample_stock_df)
         expected = sample_stock_df[FEATURE_COLUMNS].values
         np.testing.assert_array_equal(X, expected)
 
-    def test_target_is_adjclose(self, sample_stock_df):
-        _, y = training_data_prep(sample_stock_df)
-        expected = sample_stock_df[TARGET_COLUMN].values
-        np.testing.assert_array_equal(y, expected)
+    def test_lag_return_features_present(self, sample_stock_df):
+        """Return-based lag features must be used, not absolute price lags."""
+        for col in ['lag_return_1', 'lag_return_5', 'lag_return_30', 'lag_return_45']:
+            assert col in FEATURE_COLUMNS, f"{col} missing from FEATURE_COLUMNS"
 
 
 # ---------------------------------------------------------------------------
@@ -116,6 +129,12 @@ class TestWalkForwardBacktest:
         for col in ('Date', 'Actual', 'Predicted', 'AbsError'):
             assert col in result.columns, f"Missing column: {col}"
 
+    def test_results_are_in_price_space(self, sample_stock_df):
+        """Actual and Predicted should be in price space (~100), not return space (~0)."""
+        result = walk_forward_backtest(sample_stock_df, n_splits=2)
+        assert result['Actual'].mean() > 1.0, "Actual values look like returns, not prices"
+        assert result['Predicted'].mean() > 1.0, "Predicted values look like returns, not prices"
+
     def test_abs_error_matches_difference(self, sample_stock_df):
         result = walk_forward_backtest(sample_stock_df, n_splits=2)
         computed = (result['Actual'] - result['Predicted']).abs()
@@ -131,12 +150,8 @@ class TestWalkForwardBacktest:
         assert dates == sorted(dates)
 
     def test_no_future_data_leakage(self, sample_stock_df):
-        """Each test window must contain dates not present in the training window."""
         from sklearn.model_selection import TimeSeriesSplit
         X = sample_stock_df[FEATURE_COLUMNS].values
         dates = np.array(sample_stock_df['date'].values)
-        tscv = TimeSeriesSplit(n_splits=2)
-        for train_idx, test_idx in tscv.split(X):
-            train_dates = set(dates[train_idx])
-            test_dates = set(dates[test_idx])
-            assert train_dates.isdisjoint(test_dates), "Train and test dates overlap"
+        for train_idx, test_idx in TimeSeriesSplit(n_splits=2).split(X):
+            assert set(dates[train_idx]).isdisjoint(set(dates[test_idx]))
